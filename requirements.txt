@@ -1,0 +1,7 @@
+numpy
+opencv-python
+ultralytics
+pyrealsense2
+fastapi
+uvicorn[standard]
+onnxruntime

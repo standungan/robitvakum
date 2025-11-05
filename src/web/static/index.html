@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Person Follower Dashboard</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      header {
+        padding: 1rem 2rem;
+        background: #111827;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      main {
+        padding: 1rem 2rem 2rem;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+      }
+      .panel {
+        background: #1e293b;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.6);
+      }
+      #frame {
+        width: 100%;
+        height: auto;
+        border-radius: 0.5rem;
+        border: 1px solid #334155;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 0.5rem 1rem;
+        margin: 0;
+      }
+      dt {
+        font-weight: 600;
+        color: #94a3b8;
+      }
+      dd {
+        margin: 0;
+      }
+      #error {
+        color: #f87171;
+        font-weight: 600;
+      }
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Person Follower Dashboard</h1>
+      <span id="statusLabel">Initializing…</span>
+    </header>
+    <main>
+      <section class="panel">
+        <img id="frame" alt="Latest detection frame" />
+      </section>
+      <section class="panel">
+        <h2>Telemetry</h2>
+        <p id="error"></p>
+        <dl>
+          <dt>Detection</dt>
+          <dd id="detection">Waiting for data…</dd>
+          <dt>Frame Rate</dt>
+          <dd id="fps">—</dd>
+          <dt>Distance</dt>
+          <dd id="distance">—</dd>
+          <dt>Bearing</dt>
+          <dd id="bearing">—</dd>
+          <dt>Command</dt>
+          <dd id="command">—</dd>
+          <dt>Last Update</dt>
+          <dd id="updated">—</dd>
+        </dl>
+      </section>
+    </main>
+    <script>
+      const frameEl = document.getElementById("frame");
+      const statusLabel = document.getElementById("statusLabel");
+      const detectionEl = document.getElementById("detection");
+      const distanceEl = document.getElementById("distance");
+      const bearingEl = document.getElementById("bearing");
+      const commandEl = document.getElementById("command");
+      const updatedEl = document.getElementById("updated");
+      const fpsEl = document.getElementById("fps");
+      const errorEl = document.getElementById("error");
+
+      async function fetchStatus() {
+        try {
+          const res = await fetch("/api/status");
+          if (!res.ok) {
+            const payload = await res.json();
+            throw new Error(payload.detail || "Status unavailable");
+          }
+          const payload = await res.json();
+          statusLabel.textContent = payload.status === "ok" ? "Tracking" : "Warming up";
+          errorEl.textContent = "";
+
+          if (payload.status !== "ok") {
+            detectionEl.textContent = "Waiting for detections…";
+            distanceEl.textContent = "—";
+            bearingEl.textContent = "—";
+            commandEl.textContent = "—";
+            updatedEl.textContent = "—";
+            fpsEl.textContent = "—";
+            return;
+          }
+
+          const detection = payload.detection;
+          if (detection) {
+            detectionEl.textContent = `confidence ${(detection.confidence * 100).toFixed(1)}% | center ${detection.center.join(", ")}`;
+          } else {
+            detectionEl.textContent = "No person detected";
+          }
+
+          const estimate = payload.estimate;
+          if (estimate) {
+            distanceEl.textContent = `${estimate.distance_m.toFixed(2)} m`;
+            bearingEl.textContent = `${estimate.bearing_deg.toFixed(1)}°`;
+          } else {
+            distanceEl.textContent = "—";
+            bearingEl.textContent = "—";
+          }
+
+          const command = payload.command;
+          commandEl.textContent = `v=${command.linear_velocity_mps.toFixed(2)} m/s | w=${command.angular_velocity_radps.toFixed(2)} rad/s`;
+
+          const updated = new Date(payload.timestamp * 1000);
+          updatedEl.textContent = updated.toLocaleTimeString();
+          const fps = payload.fps ?? 0;
+          fpsEl.textContent = fps > 0 ? `${fps.toFixed(1)} FPS` : "—";
+        } catch (err) {
+          statusLabel.textContent = "Error";
+          errorEl.textContent = err instanceof Error ? err.message : String(err);
+          detectionEl.textContent = "—";
+          distanceEl.textContent = "—";
+          bearingEl.textContent = "—";
+          commandEl.textContent = "—";
+          updatedEl.textContent = "—";
+          fpsEl.textContent = "—";
+        }
+      }
+      frameEl.src = "/api/frame/stream";
+      fetchStatus();
+      setInterval(fetchStatus, 1000);
+    </script>
+  </body>
+</html>
