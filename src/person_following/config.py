@@ -33,7 +33,7 @@ class DetectorConfig:
 @dataclass
 class ControllerConfig:
     """Simple proportional controller parameters for robot commands."""
-    target_distance_m: float = 1.2
+    target_distance_m: float = 2.5
     distance_gain: float = 0.8
     angle_gain: float = 2.2
     max_linear_speed_mps: float = 0.6
